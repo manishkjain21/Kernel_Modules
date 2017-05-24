@@ -38,10 +38,10 @@ int init_module( void )
   printk("This is the test for In between Time Modules\n");
   			
   
-  while(jiffies <= end_60)
+  while(jiffies <= end_60)		// This code works but creates cpu stalling
   { 
-	printk("Hello This is a Test");
-	mdelay(5000);
+	printk("\nHello This is a Test");
+	mdelay_interruptible(1000);
 
   }
   printk("We can run functions in between program delays\n");	
