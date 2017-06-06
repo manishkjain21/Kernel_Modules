@@ -15,7 +15,7 @@ void my_timer_callback( unsigned long data )
   count++;
   if (count <= 3) mod_timer( &my_timer, jiffies + msecs_to_jiffies(1000) );
 
- return;
+
   	  		
 }
  
