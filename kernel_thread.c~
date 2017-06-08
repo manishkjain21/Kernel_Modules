@@ -38,7 +38,7 @@ struct task_struct *thread1;
 int thread_fn() {
 
 unsigned long j0,j1;
-int delay = 60*HZ, ret;
+int delay = 60*HZ;
 j0 = jiffies;
 j1 = j0 + delay;
 
@@ -50,13 +50,6 @@ while (time_before(jiffies, j1)){
 }
 printk(KERN_INFO "Timer Completed");
 
-ret = kthread_stop(current);
- 
- if(!ret)
-  printk(KERN_INFO "Thread stopped");
- else 
-  printk(KERN_INFO "%d", ret);
-
 return 0;
 }
 
@@ -65,6 +58,7 @@ return 0;
 int thread_init (void) {
    
     char our_thread[8]="thread1";
+    int ret;
     printk(KERN_INFO "in init");
     thread1 = kthread_create(thread_fn,NULL,our_thread);
     if((thread1))
@@ -72,6 +66,14 @@ int thread_init (void) {
         printk(KERN_INFO "in if");
         wake_up_process(thread1);
         }
+    ret = kthread_stop(current);
+ 
+    if(!ret)
+  	    printk(KERN_INFO "Thread stopped");
+    else 
+  	    printk(KERN_INFO "%d", ret);
+    kfree(thread1);
+    printk(KERN_INFO "Pointer Deleted");	
 
     return 0;
 }
