@@ -1,0 +1,334 @@
+/* 
+ * This code enables the decay-based DRAM PUF on PandaBoard Rev3B
+ * as a kernel module.
+ *
+ * Copyright (C) 2016
+ * Authors: Muhammad Umair Saleem <muhammadumair.saleem@stud.tu-darmstadt.de>
+ * and André Schaller <schaller@seceng.informatik.tu-darmstadt.de> 
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ *
+ */
+
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/workqueue.h>
+
+
+/* module_param(name, type, permission), name - parameter exposed to the user and the variable holding the value, both shd be same, 
+ * S_IRUGO | S_IWUSR (everyone can read, user can also write)
+ * It is possible to have the internal variable named differently than the external parameter. This is accomplished via   module_param_named():
+
+module_param_named(name, variable, type, perm);
+
+ * Refer the following link: http://www.makelinux.net/books/lkd2/ch16lev1sec6
+ */
+static unsigned long puf_init_val = 0x0;
+module_param(puf_init_val, uint, S_IRUGO);
+static unsigned  long puf_delaySec =180;
+module_param(puf_delaySec , uint, S_IRUGO);
+static unsigned long puf_base_addr =0xa0000000;
+module_param(puf_base_addr, uint, S_IRUGO);
+
+unsigned int PUF_size=1024;                     //1024*4 byte//
+unsigned int OMAP_EMIF2 =0x4d000010;
+unsigned int OMAP_EMIF2_SHW =0x4d000014;
+unsigned int OMAP_EMIF2_temp_polling =0x4d0000cc;
+static int emif1_enabled = -1, emif2_enabled = -1;
+
+
+static struct delayed_work PUF_work;
+
+/*
+*   This function writes the value write_vale to the system address system_addr.
+*/
+void write_OMAP_system_address(unsigned int system_addr,unsigned int write_val){
+  void *write_virtaddr;
+  unsigned int written_value;
+ /*
+  *ioremap - converts the system address to virtual address
+  *iounmap - releases the memory pointer 
+  */
+  write_virtaddr = ioremap(system_addr,sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=write_val;
+  iounmap(write_virtaddr);
+}
+
+/*
+*   This function reads the value from system address system_addr.
+*/
+void read_OMAP_system_address(unsigned int system_addr){
+  void *read_virtaddr;
+ /*To read from I/O memory, use one of the following:
+  *unsigned int ioread32(void *addr);
+  *reading directly using the memory address is also one of the methods
+  */
+  read_virtaddr = ioremap(system_addr, sizeof(unsigned int));
+  printk(KERN_INFO "PUF Read:0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr),system_addr);
+  iounmap(read_virtaddr);
+}
+
+/*
+*   This function disables the DRAM refresh of the external memory interface 2 (EMIF2). Note, that
+*  if DRAM refresh of EMIF1 is disabled, it will not be possible to boot a linux kernel.
+*/
+void disable_refresh(void){
+  void *read_virtaddr;     //read address for EMIF 2 register
+  void *write_virtaddr;    //write address for EMIF 2 register
+
+  write_virtaddr = ioremap(OMAP_EMIF2,sizeof(unsigned int));
+  read_virtaddr = ioremap(OMAP_EMIF2, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x80000000;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr),OMAP_EMIF2);
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+
+  write_virtaddr = ioremap(OMAP_EMIF2_SHW,sizeof(unsigned int));
+  read_virtaddr = ioremap(OMAP_EMIF2_SHW, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x80000000;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2_SHW);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr),OMAP_EMIF2_SHW);
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+
+  write_virtaddr = ioremap( OMAP_EMIF2_temp_polling,sizeof(unsigned int));
+  read_virtaddr = ioremap( OMAP_EMIF2_temp_polling, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x08016893;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2_temp_polling);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr), OMAP_EMIF2_temp_polling);
+  printk(KERN_INFO "Temp polling alert disabled");
+  printk(KERN_INFO "Refresh Disabled at EMIF2");
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+}
+
+/*
+*   This function enables the DRAM refresh of the external memory interface 2 (EMIF2).
+*/
+void enable_refresh(void){
+  void *read_virtaddr;     //read address for EMIF 2 register
+  void *write_virtaddr;    //write address for EMIF 2 register
+
+  write_virtaddr = ioremap(OMAP_EMIF2,sizeof(unsigned int));
+  read_virtaddr = ioremap(OMAP_EMIF2, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x00000618;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr),OMAP_EMIF2);
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+
+  write_virtaddr = ioremap(OMAP_EMIF2_SHW,sizeof(unsigned int));
+  read_virtaddr = ioremap(OMAP_EMIF2_SHW, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x00000618;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2_SHW);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr),OMAP_EMIF2_SHW);
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+
+  write_virtaddr = ioremap( OMAP_EMIF2_temp_polling,sizeof(unsigned int));
+  read_virtaddr = ioremap( OMAP_EMIF2_temp_polling, sizeof(unsigned int));
+  *((unsigned int*)write_virtaddr)=0x58016893;
+  printk(KERN_INFO "EMIF 2 REG Write 0x%08x at 0x%08x\n",*((unsigned int*)write_virtaddr),OMAP_EMIF2_temp_polling);
+  printk(KERN_INFO "EMIF 2 REG Read 0x%08x at 0x%08x\n",*((unsigned int*)read_virtaddr), OMAP_EMIF2_temp_polling);
+  printk(KERN_INFO "Temp polling alert enabled");
+  printk(KERN_INFO "Refresh enabled at EMIF2");
+  iounmap(read_virtaddr);
+  iounmap(write_virtaddr);
+}
+
+/*
+*   This function reads the contents of the PUF memory range.
+*/
+static unsigned int PUF_read_query(struct work_struct *work)
+{
+  unsigned int addr,puf_read_loop,puf_read_vale;
+  puf_read_vale=0;
+  addr=0xa0000000;
+
+  printk(KERN_INFO "PUF Query START.\n");
+  for(puf_read_loop=0;puf_read_loop<PUF_size;puf_read_loop++){
+    read_OMAP_system_address(addr);
+    addr=addr+4;
+  }
+
+  printk(KERN_INFO "PUF Query END.\n");
+  enable_refresh();
+  return puf_read_vale;
+}
+
+/*
+*   This function writes the initialization value to the PUF memory range.
+*/
+static void PUF_write_query(void){
+  unsigned int addr;
+  unsigned int puf_write_loop;
+  puf_write_loop=0;
+
+  addr=0xa0000000;
+  for(puf_write_loop=0;puf_write_loop<PUF_size;puf_write_loop++){
+    write_OMAP_system_address(addr,puf_init_val);
+    addr=addr+4;
+  }
+}
+
+void get_puf(unsigned int base_address_puf){
+	//PUF code begin 
+
+	unsigned int puf_init_value=0x0;			//PUF Init Value
+	unsigned int hammer_number=0;	                //Number of hammers
+	unsigned int measurment_loop=0;	                //Loop variable for measurements
+	unsigned int no_of_measurements_per_sampledecay=20; //number of sample per sample decay
+	unsigned int currentdecay=0;                      //current decay in running loop
+	unsigned int hammer_flag=0x1;                     //Hammer Flag.. Hammer Yes or No
+	unsigned int no_PUF_rows=32;	                //No of Rows for PUF > 1Row has 1024 words total size:4KB:::
+	unsigned int no_hammer_rows=1;	                //No of Rows for Hammer > 1Row has 1024 words total size:4KB::: e.g No of Hammer rows is 8
+	unsigned int Sample_delay=60*1000;                     //Measurement sample decay(ms)
+	unsigned int total_delay=120*1000;                      //Total decay time(ms)
+	unsigned long current_timer_value=0;              //current Timer value in msec,Reference to get timer value from this point
+	unsigned int hammer_init_value=0x0;      	//Hammer Rows init Value
+	unsigned long relative_decay_time=0x0;             //Decay time relative to starting of application
+	int puf_row_select=0;
+	int puf_init_select=0;
+	int RH_init_select=0;
+	unsigned long pair_or_alternate_flag=0x0;	// 0x1: ALT (DSRH), 0x0: PRH (SSRH)
+
+	while(puf_init_select<3){ //begin multiple test with multiple ending loop
+
+		//Set rows
+		switch(puf_row_select){
+	        case 0: no_hammer_rows=1;no_PUF_rows=1; break;
+	        case 1: no_hammer_rows=8;no_PUF_rows=8; break;
+	        case 2: no_hammer_rows=32;no_PUF_rows=32; break;
+	        default:
+	        	no_hammer_rows=1;
+    	    		no_PUF_rows=1;
+        		puf_row_select=0;
+	        	RH_init_select++;
+        		break;
+    		}
+
+	    	//Set Hammer row IV
+		switch(RH_init_select){
+			case 0: hammer_init_value=0x0; break;
+			case 1: hammer_init_value=0x55555555; break;
+			case 2: hammer_init_value=0xaaaaaaaa; break;
+			case 3: hammer_init_value=0xffffffff; break;
+			default:
+				hammer_init_value=0x0;
+				RH_init_select=0;
+				puf_init_select++;
+				break;
+    		}
+
+    		//Set PUF row IV
+		switch(puf_init_select){
+        	case 0: puf_init_value=0x0; break;
+        	case 1: puf_init_value=0xaaaaaaaa; break;
+	        case 2: puf_init_value=0xffffffff; break;
+        	default:puf_init_value=0x0; break;
+    		}
+	
+    		printf("[i] Starting the Rowhammer PUF for PandaBoard\n");
+
+		printf("Number of PUF rows: %d PUF init Value :%x Rowhammer rows init Value:%x\n",no_PUF_rows,puf_init_value,hammer_init_value);
+		
+
+		// Iterating the individual measurements
+		for(measurment_loop=0;measurment_loop<no_of_measurements_per_sampledecay;measurment_loop++){
+			printf("[i] Start measurement: %d\n",measurment_loop);
+
+			// Iterating the invidivual decay times
+			for(currentdecay=Sample_delay;currentdecay<=total_delay;currentdecay+=Sample_delay){
+				printf("[i] Start decaytime: %d\n",currentdecay/1000);
+				refresh_disable();
+				Init_puf_and_hammer_rows(base_address_puf,no_PUF_rows,puf_init_value,no_PUF_rows,hammer_init_value,pair_or_alternate_flag);
+				current_timer_value=get_timer(0);
+				printf("[i]\tTimer elapsed since its reset %lu sec\n",current_timer_value/1000);
+				printf("[i] Decay: %d sec\n",currentdecay/1000);
+				relative_decay_time=currentdecay+current_timer_value;
+				printf("[i]\tRelative Decay: %lu msec\n",relative_decay_time);
+				current_timer_value=get_timer(0);
+
+				//  Begin actual hammer procedure
+				while(get_timer(0)<relative_decay_time){
+					//	Check timer overflow and update relative time
+					if(get_timer(0)>=0 && get_timer(0)<=10){
+						relative_decay_time=currentdecay-(894784-current_timer_value);
+						printf("[i]\tUpdated relative Decay: %lu msec\n",relative_decay_time);
+					}
+
+					// Hammering will be done
+					if(hammer_flag==1){
+						hammering_rows(base_address_puf,no_hammer_rows,pair_or_alternate_flag);
+						hammer_number++;
+					}
+				}
+
+				printf("[i] Total hammer attempts per row: %d\n",hammer_number);
+				get_temperature();
+				refresh_enable();
+				//printf("[i] Starting PUF read-out\n");
+				Read_puf(base_address_puf,no_PUF_rows,pair_or_alternate_flag);
+				//printf("[i] PUF reading end\n");
+
+				printf("[i] Finished PUF query for decaytime: %d\n",currentdecay);
+				hammer_number=0;
+			}
+			printf("End measurement:%d\n",measurment_loop);
+		}
+		puf_row_select++;
+	}
+}//End get_puf function
+
+
+/*
+*   This function initializes the decay-based DRAM PUF kernel module.
+*/
+int __init pandamod_init(void)
+{
+  printk(KERN_INFO "Pandaboard PUF Kernel Module\n");
+  PUF_write_query();
+  disable_refresh();
+  if (puf_delaySec > 0) {
+/* Delayed Work:
+ * If a delay is needed between two consecutive Works then use the below function mod
+ * int scheduled_delayed_work( struct delayed_work *dwork, unsigned long delay );
+ * For scheduling the Work again in Work queues
+ */
+
+    INIT_DELAYED_WORK(&PUF_work, PUF_read_query);
+    schedule_delayed_work(&PUF_work, msecs_to_jiffies(puf_delaySec*1000));
+  }
+
+  return 0;
+}
+
+void __exit pandamod_exit(void)
+{
+  printk(KERN_INFO "Exiting Pandaboard Kernel Module \n");
+}
+
+module_init(pandamod_init);
+module_exit(pandamod_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("PANDABOARD DECAY-BASED DRAM PUF");
+MODULE_DESCRIPTION("Pandaboard decay-based DRAM PUF kernel module for changing DRAM refresh rate and reading/writing tp PUF memory locations");
+MODULE_PARM_DESC(puf_delaySec , "The physical base address of the DRAM PUF");
+MODULE_PARM_DESC(write_reg_addr, "The physical address to write");
+MODULE_PARM_DESC(puf_init_val, "The PUF initialization value to write to 'write_reg_addr'");
