@@ -186,6 +186,177 @@ static void PUF_write_query(void){
   }
 }
 
+/******************************************
+THE BELOW CODE IS IMPORTED FROM THE EARLIER FILE OF EMIF COMMON FOR BOOTLOADER
+
+***************************************************************/
+
+void write_row(unsigned int row_base_address,unsigned int write_value){
+	unsigned int puf_address=row_base_address;
+
+	for(puf_address=row_base_address;puf_address<(row_base_address+row_size);puf_address+=4){
+		__raw_writel(write_value,puf_address);
+	}
+}
+
+void read_row(unsigned int row_base_address){
+	unsigned int puf_read_value=0x0;
+	unsigned int puf_address=row_base_address;
+
+	for(puf_address=row_base_address;puf_address<(row_base_address+row_size);puf_address+=4){
+		puf_read_value=__raw_readl(puf_address);
+		printf("%x\n",puf_read_value);
+	}
+}
+
+void Init_puf_and_hammer_rows(unsigned int puf_base_address,unsigned int no_PUF_rows,unsigned int puf_init_value,unsigned int no_hammer_rows,unsigned int hammer_init_value,unsigned int pair_alternate_flag){
+
+	unsigned int current_row=0;
+	unsigned int puf_address=0;
+	unsigned int hammer_address=0;
+
+	//Setting base address for PUF section @ ROW 1
+	puf_address=puf_base_address+same_bank_row_size;
+	//Setting base address for Hammer section @ ROW 0
+	hammer_address=puf_base_address;
+
+	printf("[i] Initialiting PUF & hammer rows\n");
+
+	//Set Hammer rows
+	switch(pair_alternate_flag){
+		case 0:
+		{
+			printf("[i] Single-Sided Rowhammer (SSRH)\n");
+			//address_decode(puf_address,0); //Decode ROW and COL address form system address
+			if(no_PUF_rows==1){
+				write_row(puf_address,puf_init_value);
+				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+				write_row(hammer_address,hammer_init_value);
+			}else{
+				for(current_row=0;current_row<no_PUF_rows/2;current_row++){
+					//address_decode(puf_address,0);  //Decode ROW and COL address form system address
+					write_row(puf_address,puf_init_value);
+					puf_address=puf_address+same_bank_row_size;
+					//address_decode(puf_address,0);  //Decode ROW and COL address form system address
+					write_row(puf_address,puf_init_value);
+					puf_address=puf_address+(2*same_bank_row_size);
+				}
+				for(current_row=0;current_row<(no_hammer_rows/2)+1;current_row++){
+					//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+					write_row(hammer_address,hammer_init_value);
+					hammer_address=hammer_address+(3*same_bank_row_size);
+				}
+			}
+			break;
+		}
+		default:
+		{
+			printf("[i] Double-Sided Rowhammer (SSRH)\n");
+			for(current_row=0;current_row<no_PUF_rows*2;current_row++){
+				if(current_row%2!=0){
+				//address_decode(puf_address,0); //Decode ROW and COL address form system address
+				write_row(puf_address,puf_init_value);
+				puf_address=puf_base_address+((current_row+2)*same_bank_row_size);
+				}
+			}
+			for(current_row=0;current_row<=no_hammer_rows*2;current_row++){
+				if(current_row%2==0){
+					//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+					write_row(hammer_address,hammer_init_value);
+					hammer_address=puf_base_address+((current_row+2)*same_bank_row_size);
+				}
+			}
+			break;
+		}
+
+	}
+	printf("[i] Finished initialiting PUF & hammer rows\n");
+}
+
+
+void hammering_rows(unsigned int puf_base_address,unsigned int no_hammer_rows,unsigned int pair_alternate_flag){
+
+	unsigned int hammer_address=0;
+	unsigned int current_row=0;
+	hammer_address=puf_base_address; //Setting base address for Hammer section @ ROW 0
+
+	switch(pair_alternate_flag){
+		case 0:
+		{
+			if(no_hammer_rows==1){
+				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+				__raw_readl(hammer_address);
+				hammer_address=hammer_address+(1024*same_bank_row_size);
+				__raw_readl(hammer_address);
+			}else{
+				for(current_row=0;current_row<(no_hammer_rows/2)+1;current_row++){
+				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+					__raw_readl(hammer_address);
+					hammer_address=hammer_address+(3*same_bank_row_size);
+				}
+			}
+			break;
+		}
+		default:
+		{
+			for(current_row=0;current_row<=no_hammer_rows*2;current_row++){
+				if(current_row%2==0){
+				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
+					__raw_readl(hammer_address);
+					hammer_address=puf_base_address+((current_row+2)*same_bank_row_size);
+					}
+				}
+				break;
+			}
+	}
+}
+
+void Read_puf(unsigned int puf_base_address,unsigned int no_PUF_rows,unsigned int pair_alternate_flag){
+
+	unsigned int current_row=0;
+	unsigned int puf_address=0;
+
+	puf_address=puf_base_address+same_bank_row_size;  //Setting base address for PUF section @ ROW 1
+	printf("[i] Starting PUF read-out\n");
+
+	switch(pair_alternate_flag){ //Set Hammer rows
+		case 0:
+		{
+			printf("[i] Single-Sided Rowhammer (SSRH)\n");
+			if(no_PUF_rows==1){
+				//address_decode(puf_address,0); //Decode ROW and COL address form system address
+				read_row(puf_address);
+			}
+			else{
+				for(current_row=0;current_row<no_PUF_rows/2;current_row++){
+					//address_decode(puf_address,0);  //Decode ROW and COL address form system address
+					read_row(puf_address);
+					puf_address=puf_address+same_bank_row_size;
+					//address_decode(puf_address,0);  //Decode ROW and COL address form system address
+					read_row(puf_address);
+					puf_address=puf_address+(2*same_bank_row_size);
+				}
+			}
+			break;
+		}
+		default:
+		{
+			printf("PUF Alternate Mode\n");
+			for(current_row=0;current_row<no_PUF_rows*2;current_row++){
+				if(current_row%2!=0){
+					//address_decode(puf_address,0); //Decode ROW and COL address form system address
+					read_row(puf_address);
+					puf_address=puf_base_address+((current_row+2)*same_bank_row_size);
+				}
+			}
+			break;
+		}
+	}
+	printf("[i] Finished PUF read-out\n");
+}
+
+
+
 void get_puf(unsigned int base_address_puf){
 	//PUF code begin 
 
@@ -295,7 +466,7 @@ void get_puf(unsigned int base_address_puf){
 	}
 }//End get_puf function
 
-
+/************END OF ROWHAMMER PUF*********/
 /*
 *   This function initializes the decay-based DRAM PUF kernel module.
 */

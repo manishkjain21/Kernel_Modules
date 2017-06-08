@@ -20,9 +20,11 @@ We shd manaully remove the loaded kernel
 #include <linux/slab.h>
 
 // Allocating memory on the Heap
-len = sizeof(struct task_struct);
+
 struct task_struct *thread1;
 
+unsigned int puf_delaysec =30;
+module_param(puf_delaysec , uint, S_IRUGO);
 //thread1 = (struct task_struct ) ;
 
 /*In the call to kthread_create we have passed the following arguments 
@@ -38,7 +40,7 @@ struct task_struct *thread1;
 int thread_fn() {
 
 unsigned long j0,j1;
-int delay = 60*HZ;
+int delay = puf_delaysec*HZ;
 j0 = jiffies;
 j1 = j0 + delay;
 
@@ -53,33 +55,33 @@ printk(KERN_INFO "Timer Completed");
 return 0;
 }
 
-
-
 int thread_init (void) {
    
     char our_thread[8]="thread1";
-    int ret;
+    
     printk(KERN_INFO "in init");
-    thread1 = kthread_create(thread_fn,NULL,our_thread);
+    thread1 = kthread_create(thread_fn,puf_delaysec,our_thread);
     if((thread1))
         {
         printk(KERN_INFO "in if");
         wake_up_process(thread1);
         }
-    ret = kthread_stop(current);
- 
-    if(!ret)
-  	    printk(KERN_INFO "Thread stopped");
-    else 
-  	    printk(KERN_INFO "%d", ret);
-    kfree(thread1);
-    printk(KERN_INFO "Pointer Deleted");	
+
+	
 
     return 0;
 }
 
 void thread_cleanup(void) {
+  int ret;
+  ret = kthread_stop(thread1);
  
+  if(!ret)
+  	    printk(KERN_INFO "Thread stopped");
+  else 
+  	    printk(KERN_INFO "%d", ret);
+  kfree(thread1);
+  printk(KERN_INFO "Pointer Deleted");
   printk(KERN_INFO "Module Removed");
  
  return;

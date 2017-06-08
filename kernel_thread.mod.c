@@ -18,9 +18,10 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0x62c440a7, "module_layout" },
-	{ 0xa4f3dfa0, "wake_up_process" },
+	{ 0xc3fe87c8, "param_ops_uint" },
 	{ 0x37a0cba, "kfree" },
 	{ 0xc9a008df, "kthread_stop" },
+	{ 0xa4f3dfa0, "wake_up_process" },
 	{ 0x2dc7be74, "kthread_create_on_node" },
 	{ 0xefd6cf06, "__aeabi_unwind_cpp_pr0" },
 	{ 0x7d11c268, "jiffies" },
@@ -34,4 +35,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "ED4CB830D2518C1010551E7");
+MODULE_INFO(srcversion, "29C6BFC7DA58FEA341A5469");

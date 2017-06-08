@@ -516,6 +516,15 @@ deps_/home/seceng/Desktop/Manish/Kernel_Modules/kernel_panda.o := \
   arch/arm/plat-omap/include/plat/omap44xx.h \
   arch/arm/plat-omap/include/plat/ti81xx.h \
   arch/arm/plat-omap/include/plat/am33xx.h \
+  include/linux/slab.h \
+    $(wildcard include/config/slab/debug.h) \
+    $(wildcard include/config/failslab.h) \
+    $(wildcard include/config/slub.h) \
+    $(wildcard include/config/slob.h) \
+    $(wildcard include/config/debug/slab.h) \
+    $(wildcard include/config/slab.h) \
+  include/linux/slab_def.h \
+  include/linux/kmalloc_sizes.h \
 
 /home/seceng/Desktop/Manish/Kernel_Modules/kernel_panda.o: $(deps_/home/seceng/Desktop/Manish/Kernel_Modules/kernel_panda.o)
 
