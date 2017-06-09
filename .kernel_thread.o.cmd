@@ -479,15 +479,43 @@ deps_/home/seceng/Desktop/Manish/Kernel_Modules/kernel_thread.o := \
   include/linux/aio.h \
   include/linux/aio_abi.h \
   include/linux/uio.h \
-  include/linux/slab.h \
-    $(wildcard include/config/slab/debug.h) \
-    $(wildcard include/config/failslab.h) \
-    $(wildcard include/config/slub.h) \
-    $(wildcard include/config/slob.h) \
-    $(wildcard include/config/debug/slab.h) \
-    $(wildcard include/config/slab.h) \
-  include/linux/slab_def.h \
-  include/linux/kmalloc_sizes.h \
+  include/linux/io.h \
+    $(wildcard include/config/has/ioport.h) \
+  /home/seceng/Desktop/Manish/linux-2.6/arch/arm/include/asm/io.h \
+    $(wildcard include/config/pcmcia/soc/common.h) \
+    $(wildcard include/config/pci.h) \
+    $(wildcard include/config/isa.h) \
+    $(wildcard include/config/pccard.h) \
+  include/asm-generic/pci_iomap.h \
+  arch/arm/mach-omap2/include/mach/io.h \
+  arch/arm/plat-omap/include/plat/io.h \
+  arch/arm/mach-omap2/include/mach/hardware.h \
+  arch/arm/plat-omap/include/plat/hardware.h \
+    $(wildcard include/config/reg/base.h) \
+    $(wildcard include/config/arch/omap1.h) \
+  arch/arm/plat-omap/include/plat/cpu.h \
+    $(wildcard include/config/arch/omap730.h) \
+    $(wildcard include/config/arch/omap850.h) \
+    $(wildcard include/config/arch/omap15xx.h) \
+    $(wildcard include/config/arch/omap16xx.h) \
+    $(wildcard include/config/arch/omap2.h) \
+    $(wildcard include/config/soc/omap2420.h) \
+    $(wildcard include/config/soc/omap2430.h) \
+    $(wildcard include/config/arch/omap3.h) \
+    $(wildcard include/config/soc/omap3430.h) \
+    $(wildcard include/config/arch/omap4.h) \
+  arch/arm/plat-omap/include/plat/multi.h \
+    $(wildcard include/config/arch/omap2plus.h) \
+  arch/arm/plat-omap/include/plat/serial.h \
+  arch/arm/plat-omap/include/plat/omap7xx.h \
+    $(wildcard include/config/base.h) \
+  arch/arm/plat-omap/include/plat/omap1510.h \
+  arch/arm/plat-omap/include/plat/omap16xx.h \
+  arch/arm/plat-omap/include/plat/omap24xx.h \
+  arch/arm/plat-omap/include/plat/omap34xx.h \
+  arch/arm/plat-omap/include/plat/omap44xx.h \
+  arch/arm/plat-omap/include/plat/ti81xx.h \
+  arch/arm/plat-omap/include/plat/am33xx.h \
 
 /home/seceng/Desktop/Manish/Kernel_Modules/kernel_thread.o: $(deps_/home/seceng/Desktop/Manish/Kernel_Modules/kernel_thread.o)
 

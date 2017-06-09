@@ -169,7 +169,6 @@ static void PUF_write_query(void){
 }
 
 
-/*
 
 void get_puf(unsigned int base_address_puf){
 	//PUF code begin 
@@ -279,7 +278,7 @@ void get_puf(unsigned int base_address_puf){
 		puf_row_select++;
 	}
 }//End get_puf function
-*/
+
 /*
 The below function takes care of timing so as to run the program accordingly
 */
