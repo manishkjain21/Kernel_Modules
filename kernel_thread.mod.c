@@ -22,6 +22,7 @@ __attribute__((section("__versions"))) = {
 	{ 0xa4f3dfa0, "wake_up_process" },
 	{ 0x2dc7be74, "kthread_create_on_node" },
 	{ 0x7d11c268, "jiffies" },
+	{ 0x1000e51, "schedule" },
 	{ 0x2e5810c6, "__aeabi_unwind_cpp_pr1" },
 	{ 0x27e1a049, "printk" },
 	{ 0xefd6cf06, "__aeabi_unwind_cpp_pr0" },
@@ -35,4 +36,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "FADCE8C2CCCD0DEA84B3104");
+MODULE_INFO(srcversion, "FDC89D4B9CC8730009B9451");

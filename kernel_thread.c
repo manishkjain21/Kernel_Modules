@@ -160,11 +160,12 @@ static void PUF_read_hammer()
   unsigned long x;
   addr = puf_base_addr;	
   
-  for(puf_read_loop=0;puf_read_loop<PUF_size;puf_read_loop++){
-     read_virtaddr = ioremap(addr, sizeof(unsigned int));
+  for(puf_read_loop=0;puf_read_loop<(PUF_size*4/512);puf_read_loop++){
+     	read_virtaddr = ioremap(addr, sizeof(unsigned int));
   	 x = *((unsigned int*)read_virtaddr);
+         
      iounmap(read_virtaddr);
-     addr=addr+8;
+     addr = addr + 512;		
   }
   
   return;
@@ -211,7 +212,7 @@ disable_refresh();
 while (time_before(jiffies, j1)){ 
 	//Rowhammer Code here
 	PUF_read_hammer();
-        //schedule();
+        schedule();
 	rowhammer_count++;
 }
 printk(KERN_INFO "The Number of times memory was accessed %lu \n", rowhammer_count);
