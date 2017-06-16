@@ -165,7 +165,7 @@ static void PUF_read_hammer()
   	 x = *((unsigned int*)read_virtaddr);
          
      iounmap(read_virtaddr);
-     addr = addr + 0x8000;		
+     addr = addr + 0x8000; //Size of row jump for same  bank
   }
   
   return;
