@@ -160,12 +160,12 @@ static void PUF_read_hammer()
   unsigned long x;
   addr = puf_base_addr;	
   
-  for(puf_read_loop=0;puf_read_loop<(PUF_size*4/512);puf_read_loop++){
+  for(puf_read_loop=0;puf_read_loop<(PUF_size/1024);puf_read_loop++){
      	read_virtaddr = ioremap(addr, sizeof(unsigned int));
   	 x = *((unsigned int*)read_virtaddr);
          
      iounmap(read_virtaddr);
-     addr = addr + 512;		
+     addr = addr + 0x8000;		
   }
   
   return;
