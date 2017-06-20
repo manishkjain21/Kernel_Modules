@@ -4,6 +4,8 @@ The below code tests for 60 secs for running a loop continuously
 In the code, we can execute it for 60 secs
 
 It initialises the PUF Memory location
+Performs Rowhammering 
+Reads Puf memory location
 
 
 ***/
@@ -23,11 +25,24 @@ It initialises the PUF Memory location
 /************ Variable Declaration *********/
 static unsigned long puf_init_val = 0x0;
 module_param(puf_init_val, uint, S_IRUGO);
-static unsigned  long puf_delaysec =30;
+static unsigned  long puf_delaysec =60;
 module_param(puf_delaysec , uint, S_IRUGO);
 static unsigned long puf_base_address =0xa0000000;
 module_param(puf_base_address, uint, S_IRUGO);
+static char *mystring = "once";
+module_param(mystring, charp, S_IRUGO);
+MODULE_PARM_DESC(mystring, "A character string");
+static unsigned long hammer_init_value = 0x0;
+module_param(hammer_init_value, uint, S_IRUGO);
+static unsigned long no_hammer_rows = 32;
+module_param(no_hammer_rows, uint, S_IRUGO);
 
+static unsigned long no_PUF_rows = 32;
+module_param(no_PUF_rows, uint, S_IRUGO);
+
+char *hammerall = "all";
+
+unsigned int puf_complete_flag=0;
 unsigned int PUF_size=1024;                     //1024*4 byte//
 unsigned int OMAP_EMIF2 =0x4d000010;
 unsigned int OMAP_EMIF2_SHW =0x4d000014;
@@ -139,8 +154,10 @@ void enable_refresh(void){
 /*
 *   This function reads the contents of the PUF memory range.
 */
-static unsigned int PUF_read_query(struct work_struct *work)
-{
+
+/* The below code is for testing purposes
+*static unsigned int PUF_read_query()
+*{
   unsigned int addr,puf_read_loop,puf_read_vale;
   puf_read_vale=0;
   addr=0xa0000000;
@@ -154,7 +171,7 @@ static unsigned int PUF_read_query(struct work_struct *work)
   printk(KERN_INFO "PUF Query END.\n");
   enable_refresh();
   return puf_read_vale;
-}
+}*/
 
 void read_row(unsigned int row_base_address){
 	unsigned int puf_read_value=0x0;
@@ -215,6 +232,7 @@ void Read_puf(unsigned int puf_base_address,unsigned int no_PUF_rows,unsigned in
 /*
 *   This function writes the initialization value to the PUF memory range.
 */
+/* The below code is for testing purposes
 static void PUF_write_query(void){
   unsigned int addr;
   unsigned int puf_write_loop;
@@ -226,7 +244,7 @@ static void PUF_write_query(void){
     addr=addr+4;
   }
 }
-
+*/
 
 void hammering_rows(unsigned int puf_base_address,unsigned int no_hammer_rows,unsigned int pair_alternate_flag){
 
@@ -242,18 +260,18 @@ void hammering_rows(unsigned int puf_base_address,unsigned int no_hammer_rows,un
 			if(no_hammer_rows==1){
 				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
 				read_virtaddr = ioremap(hammer_address, sizeof(unsigned int));
-  	 		x = *((unsigned int*)read_virtaddr);
-        iounmap(read_virtaddr);
+  	 			x = *((unsigned int*)read_virtaddr);
+        			iounmap(read_virtaddr);
 				hammer_address=hammer_address+(1024*same_bank_row_size);
 				read_virtaddr = ioremap(hammer_address, sizeof(unsigned int));
-  	 		x = *((unsigned int*)read_virtaddr);
-        iounmap(read_virtaddr);
+  	 			x = *((unsigned int*)read_virtaddr);
+       				iounmap(read_virtaddr);
 			}else{
 				for(current_row=0;current_row<(no_hammer_rows/2)+1;current_row++){
 				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
 					read_virtaddr = ioremap(hammer_address, sizeof(unsigned int));
-  	 			x = *((unsigned int*)read_virtaddr);
-        	iounmap(read_virtaddr);
+  	 				x = *((unsigned int*)read_virtaddr);
+        				iounmap(read_virtaddr);
 					hammer_address=hammer_address+(3*same_bank_row_size);
 				}
 			}
@@ -265,8 +283,8 @@ void hammering_rows(unsigned int puf_base_address,unsigned int no_hammer_rows,un
 				if(current_row%2==0){
 				//address_decode(hammer_address,0); //Decode ROW and COL address form system address
 					read_virtaddr = ioremap(hammer_address, sizeof(unsigned int));
-  	 			x = *((unsigned int*)read_virtaddr);
-        	iounmap(read_virtaddr);
+  	 				x = *((unsigned int*)read_virtaddr);
+        				iounmap(read_virtaddr);
 					hammer_address=puf_base_address+((current_row+2)*same_bank_row_size);
 					}
 				}
@@ -346,6 +364,8 @@ void Init_puf_and_hammer_rows(unsigned int puf_base_address,unsigned int no_PUF_
 
 	}
 	printk(KERN_INFO "[i] Finished initialiting PUF & hammer rows\n");
+
+	return;
 }
 
 
@@ -357,7 +377,7 @@ void get_puf(unsigned int base_address_puf){
 	unsigned int puf_init_value=0x0;			//PUF Init Value
 	unsigned int hammer_number=0;	                //Number of hammers
 	unsigned int measurment_loop=0;	                //Loop variable for measurements
-	unsigned int no_of_measurements_per_sampledecay=1; //number of sample per sample decay
+	unsigned int no_of_measurements_per_sampledecay=20; //number of sample per sample decay
 	unsigned int hammer_flag=0x1;                     //Hammer Flag.. Hammer Yes or No
 	unsigned int no_PUF_rows=32;	                //No of Rows for PUF > 1Row has 1024 words total size:4KB:::
 	unsigned int no_hammer_rows=1;	                //No of Rows for Hammer > 1Row has 1024 words total size:4KB::: e.g No of Hammer rows is 8
@@ -368,7 +388,7 @@ void get_puf(unsigned int base_address_puf){
 	unsigned long pair_or_alternate_flag=0x0;	// 0x1: ALT (DSRH), 0x0: PRH (SSRH)
   // The below is code for timing specifications
 	unsigned int currentdecay=0;                      //current decay in running loop
-  unsigned int Sample_delay=60*HZ;                     //Measurement sample decay(s)
+  	unsigned int Sample_delay=60*HZ;                     //Measurement sample decay(s)
 	unsigned int total_delay=120*HZ;                      //Total decay time(s)
 	unsigned long current_timer_value=0;              //current Timer value in msec,Reference to get timer value from this point
 	unsigned long relative_decay_time=0x0;             //Decay time relative to starting of application
@@ -384,7 +404,7 @@ void get_puf(unsigned int base_address_puf){
 	        case 2: no_hammer_rows=32;no_PUF_rows=32; break;
 	        default:
 	        	no_hammer_rows=1;
-    	    	no_PUF_rows=1;
+    	    		no_PUF_rows=1;
         		puf_row_select=0;
 	        	RH_init_select++;
         		break;
@@ -431,13 +451,13 @@ void get_puf(unsigned int base_address_puf){
 				
 				printk(KERN_INFO "[i]\tRelative Decay: %lu msec\n",relative_decay_time);
 				j0 = jiffies;
-  			j1 = j0 + currentdecay;
+  				j1 = j0 + currentdecay;
 				while (time_before(jiffies, j1)){ 
 						//Rowhammer Code here
 				if(hammer_flag==1){
 						hammering_rows(base_address_puf,no_hammer_rows,pair_or_alternate_flag);
 						hammer_number++;
-        		schedule();
+        					schedule();
 				
 					}
 				
@@ -456,7 +476,78 @@ void get_puf(unsigned int base_address_puf){
 		}
 		puf_row_select++;
 	}
-}//End get_puf function
+	return;
+}
+//End get_puf function
+
+// The below function runs only once
+void get_puf_once(unsigned int base_address_puf){
+	//PUF code begin 
+
+	
+	unsigned int hammer_number=0;	                //Number of hammers
+	unsigned int measurment_loop=0;	                //Loop variable for measurements
+	unsigned int no_of_measurements_per_sampledecay=1; //number of sample per sample decay
+	unsigned int hammer_flag=0x1;                     //Hammer Flag.. Hammer Yes or No
+
+	unsigned long pair_or_alternate_flag=0x0;	// 0x1: ALT (DSRH), 0x0: PRH (SSRH)
+  // The below is code for timing specifications
+	unsigned int currentdecay=0;                      //current decay in running loop
+  	unsigned int Sample_delay=puf_delaysec*HZ;                     //Measurement sample decay(s)
+	unsigned int total_delay=2*puf_delaysec*HZ;                      //Total decay time(s)
+	unsigned long current_timer_value=0;              //current Timer value in msec,Reference to get timer value from this point
+	unsigned long relative_decay_time=0x0;             //Decay time relative to starting of application
+	unsigned long j0,j1;	
+	
+	
+	printk(KERN_INFO "[i] Starting the Rowhammer PUF for PandaBoard\n");
+
+	printk(KERN_INFO "Number of PUF rows: %d PUF init Value :%x Rowhammer rows init Value:%x\n",no_PUF_rows,puf_init_val,hammer_init_value);
+		
+
+		// Iterating the individual measurements
+		for(measurment_loop=0;measurment_loop<no_of_measurements_per_sampledecay;measurment_loop++){
+			printk(KERN_INFO "[i] Start measurement: %d\n",measurment_loop);
+
+			// Iterating the invidivual decay times
+			for(currentdecay=Sample_delay;currentdecay<=total_delay;currentdecay+=Sample_delay){
+				printk(KERN_INFO "[i] Start decaytime: %d\n",currentdecay/HZ);
+				disable_refresh();
+				Init_puf_and_hammer_rows(base_address_puf,no_PUF_rows,puf_init_val,no_PUF_rows,hammer_init_value,pair_or_alternate_flag);
+				
+				printk(KERN_INFO "[i]\tTimer elapsed since its reset %lu sec\n",current_timer_value/HZ);
+				printk(KERN_INFO "[i] Decay: %d sec\n",currentdecay/HZ);
+				
+				printk(KERN_INFO "[i]\tRelative Decay: %lu msec\n",relative_decay_time);
+				j0 = jiffies;
+  				j1 = j0 + currentdecay;
+				while (time_before(jiffies, j1)){ 
+						//Rowhammer Code here
+				if(hammer_flag==1){
+						hammering_rows(base_address_puf,no_hammer_rows,pair_or_alternate_flag);
+						hammer_number++;
+        					schedule();
+				
+					}
+				
+				}
+				
+				printk(KERN_INFO "[i] Total hammer attempts per row: %d\n",hammer_number);
+				enable_refresh();
+				//printk(KERN_INFO "[i] Starting PUF read-out\n");
+				Read_puf(base_address_puf,no_PUF_rows,pair_or_alternate_flag);
+				//printk(KERN_INFO "[i] PUF reading end\n");
+
+				printk(KERN_INFO KERN_INFO"[i] Finished PUF query for decaytime: %d\n",currentdecay);
+				hammer_number=0;
+			}
+			printk(KERN_INFO"End measurement:%d\n",measurment_loop);
+		}
+		
+	
+	return;
+}
+
 
 /*
 The below function takes care of timing so as to run the program accordingly
@@ -476,9 +567,13 @@ The below function takes care of timing so as to run the program accordingly
 int thread_fn() {
 
   printk(KERN_INFO "Pandaboard PUF Kernel Module\n");
+  if(strcmp(mystring, hammerall))
 	get_puf(puf_base_address);
-  printk(KERN_INFO "Rowhammering Completed Completed");
- 
+  else
+	get_puf_once(puf_base_address);
+
+  printk(KERN_INFO "Rowhammering Completed");
+  puf_complete_flag = 1;		
 return 0;
 }
 
@@ -494,15 +589,17 @@ int thread_init (void) {
         printk(KERN_INFO "in if");
         wake_up_process(thread1);
         }
-	
-    
+
     return 0;
 }
 
 void thread_cleanup(void) {
-
-  kfree(thread1);  
- 
+  int ret=1;	
+  if(!puf_complete_flag){
+	ret = kthread_stop(thread1);
+	if(!ret)
+  	printk(KERN_INFO "Thread stopped");
+  }
   printk(KERN_INFO "Module Removed");
  
  return;

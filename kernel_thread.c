@@ -186,7 +186,6 @@ static void PUF_write_query(void){
   }
 }
 
-
 //thread1 = (struct task_struct ) ;
 
 /*In the call to kthread_create we have passed the following arguments 
