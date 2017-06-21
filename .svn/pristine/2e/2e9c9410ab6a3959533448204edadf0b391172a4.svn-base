@@ -1,0 +1,35 @@
+The Repository Contains Code for Rowhammer PUF eploitation from the Kernel Space.
+The main code for kernel module is located in Kernel_panda.c
+Use the rowhammer_logger.sh for logging for data.
+
+To manaully test the kernel module use the below commands with parameters:
+
+$  insmod kernel_panda.ko puf_init_val = 0x0 puf_delaysec =60 puf_base_address =0xa0000000 mystring = "once" hammer_init_value = 0x0 no_hammer_rows = 32 no_PUF_rows = 32
+
+The above insertion in kernel will run for 2 cycles depending upon the delay time, total runtime or decay time can be tested
+
+To remove the module, use the below command
+
+$ rmmod kernel_panda.ko
+
+you can enter the kernel module by using the above commands with different set of parameters
+Default Values:
+puf_init_val = 0x0 
+puf_delaysec =60 
+puf_base_address =0xa0000000 
+mystring = "once" 
+hammer_init_value = 0x0 
+no_hammer_rows = 32 
+no_PUF_rows = 32
+
+You can vary the parameters as below:
+puf_base_address = (0xa0000000 - 0xbfffffff)
+no_hammer_rows, no_PUF_rows = {1, 8, 32}
+hammer_init_value = {0x00000000, 0x55555555, 0xAAAAAAAA, 0xFFFFFFFF}
+puf_delaysec = {1..120}........recommended value - 60
+puf_init_val = {0x00000000, 0x55555555, 0xAAAAAAAA, 0xFFFFFFFF}
+mystring = {"once", "all"}
+
+
+
+

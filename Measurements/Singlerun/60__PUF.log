@@ -1,0 +1,21 @@
+[  206.453491] in init
+[  206.453643] in if
+[  206.454772] Pandaboard PUF Kernel Module
+[  206.454803] [i] Starting the Rowhammer PUF for PandaBoard
+[  206.454803] Number of PUF rows: 32 PUF init Value :0 Rowhammer rows init Value:0
+[  206.454833] [i] Start measurement: 0
+[  206.454833] [i] Start decaytime: 60
+[  206.454864] EMIF 2 REG Write 0x80000000 at 0x4d000010
+[  206.454864] EMIF 2 REG Read 0x80000000 at 0x4d000010
+[  206.454895] EMIF 2 REG Write 0x80000000 at 0x4d000014
+[  206.454895] EMIF 2 REG Read 0x00000000 at 0x4d000014
+[  206.454925] EMIF 2 REG Write 0x08016893 at 0x4d0000cc
+[  206.454925] EMIF 2 REG Read 0x08016893 at 0x4d0000cc
+[  206.454925] Temp polling alert disabled
+[  206.454956] Refresh Disabled at EMIF2
+[  206.454956] [i] Initialiting PUF & hammer rows
+[  206.454956] [i] Single-Sided Rowhammer (SSRH)
+[  206.612030] [i] Finished initialiting PUF & hammer rows
+[  206.617828] [i]	Timer elapsed since its reset 0 sec
+[  206.617828] [i] Decay: 60 sec
+[  206.617858] [i]	Relative Decay: 0 msec
