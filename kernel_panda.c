@@ -567,7 +567,7 @@ The below function takes care of timing so as to run the program accordingly
 int thread_fn() {
 
   printk(KERN_INFO "Pandaboard PUF Kernel Module\n");
-  if(strcmp(mystring, hammerall))
+  if(!strcmp(mystring, hammerall))
 	get_puf(puf_base_address);
   else
 	get_puf_once(puf_base_address);
